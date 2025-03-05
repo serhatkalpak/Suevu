@@ -1,12 +1,12 @@
 import requests
 
-API_KEY = "a214d50e6c99e1c17a90cd474ede7191" 
+API_KEY = "a214d50e6c99e1c17a90cd474ede7191"  # Kendi API key'inizi ekleyin!
 API_URL = "http://apilayer.net/api/validate"
 
 ULKELER = {
-    '1': {'ülke': 'Türkiye', 'kod': '+90', 'örnek': '5551234567'},
-    '2': {'ülke': 'ABD', 'kod': '+1', 'örnek': '2015550123'},
-    '3': {'ülke': 'Almanya', 'kod': '+49', 'örnek': '15112345678'}
+    '1': {'ülke': 'Türkiye', 'kod': '+90', 'uzunluk': 10},
+    '2': {'ülke': 'ABD', 'kod': '+1', 'uzunluk': 10},
+    '3': {'ülke': 'Almanya', 'kod': '+49', 'uzunluk': 11}
 }
 
 def numara_sorgula(numara):
@@ -48,6 +48,17 @@ def ulke_secimi():
             return ULKELER[secim]
         print("\033[31mGeçersiz seçim! Tekrar deneyin.\033[0m")
 
+def numara_al(ulke_bilgisi):
+    while True:
+        numara = input(f"\n\033[33m{ulke_bilgisi['ülke']} için numarayı girin ({ulke_bilgisi['uzunluk']} haneli): \033[0m").strip()
+        if not numara.isdigit():
+            print("\033[31mHata: Sadece rakam girin!\033[0m")
+            continue
+        if len(numara) != ulke_bilgisi['uzunluk']:
+            print(f"\033[31mHata: {ulke_bilgisi['ülke']} numarası {ulke_bilgisi['uzunluk']} haneli olmalı!\033[0m")
+            continue
+        return f"{ulke_bilgisi['kod']}{numara}"
+
 if __name__ == "__main__":
     if API_KEY == "a214d50e6c99e1c17a90cd474ede7191":
         print("\033[93mUYARI: Varsayılan API anahtarı kullanılıyor. Lütfen geçerli bir anahtar ekleyin.\033[0m")
@@ -71,7 +82,7 @@ if __name__ == "__main__":
             secilen_ulke = ulke_secimi()
             if not secilen_ulke:
                 continue
-            numara = f"{secilen_ulke['kod']}{secilen_ulke['örnek']}"
+            numara = numara_al(secilen_ulke)
             print(f"\n\033[32mSeçilen ülke: {secilen_ulke['ülke']}\033[0m")
             print(f"\033[33mSorgulanan numara: {numara}\033[0m")
             
@@ -89,6 +100,12 @@ if __name__ == "__main__":
             print(f"\033[34mUluslararası Format:\033[0m {veri.get('international_format', 'Bilgi yok')}")
             print(f"\033[34mÜlke:\033[0m {veri.get('country_name', 'Bilgi yok')} ({veri.get('country_code', '')})")
             print(f"\033[34mOperatör:\033[0m {veri.get('carrier', 'Bilgi yok')}")
+            
+            # Türkiye için ek bilgiler
+            if veri.get('country_code') == 'TR':
+                print(f"\033[34mDetaylı Konum:\033[0m {veri.get('location', 'Bilgi yok')}")
+                print(f"\033[34mHat Tipi:\033[0m {veri.get('line_type', 'Bilgi yok').title()}")
+                print(f"\033[34mAlan Kodu:\033[0m {numara[3:5]}")  # Türkiye için ilk iki rakam
         else:
             print("\n\033[1;31m✗ GEÇERSİZ NUMARA!\033[0m")
             if veri.get("error"):
