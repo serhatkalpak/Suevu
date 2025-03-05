@@ -1,6 +1,6 @@
 import requests
 
-API_KEY = "a214d50e6c99e1c17a90cd474ede7191"  # Kendi API key'inizi ekleyin!
+API_KEY = "a214d50e6c99e1c17a90cd474ede7191" 
 API_URL = "http://apilayer.net/api/validate"
 
 ULKELER = {
