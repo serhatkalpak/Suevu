@@ -112,3 +112,46 @@ if __name__ == "__main__":
                 print(f"\033[31mHata Detayı: {veri['error'].get('info', 'Bilgi yok')}\033[0m")
 
     print("\n\033[36mProgram sonlandırıldı.\033[0m")
+
+ULKELER = {
+    '1': {'ülke': 'Türkiye', 'kod': '+90', 'uzunluk': 10, 'operator_aralik': {
+        '505': 'Turkcell',
+        '506': 'Turkcell',
+        '507': 'Turkcell',
+        '551': 'Turkcell',
+        '552': 'Turkcell',
+        '553': 'Turkcell',
+        '554': 'Turkcell',
+        '555': 'Turkcell',
+        '559': 'Turkcell',
+        '530': 'Vodafone',
+        # ... Diğer operatör kodları
+    }},
+    # Diğer ülkeler...
+}
+
+def operator_bul(numara, ulke_kodu):
+    if ulke_kodu != 'TR':
+        return None
+    
+    ilk_uc = numara[3:6]
+    return ULKELER['1']['operator_aralik'].get(ilk_uc, "Bilinmeyen Operatör")
+
+# ... (Önceki fonksiyonlar aynı kalıyor)
+
+if veri.get("valid"):
+    print("\n\033[1;32m✓ GEÇERLİ NUMARA\033[0m")
+    print(f"\033[34mUluslararası Format:\033[0m {veri.get('international_format', 'Bilgi yok')}")
+    
+    # Türkiye'ye özel detaylar
+    if veri.get('country_code') == 'TR':
+        operator = operator_bul(numara, 'TR')
+        print(f"\033[34mTahmini Operatör:\033[0m {operator}")
+        print(f"\033[34mNumara Tipi:\033[0m {'Mobil' if veri.get('line_type') == 'mobile' else 'Sabit Hat'}")
+        print(f"\033[34mİl Kodu:\033[0m {numara[3:5]}")  # İlk iki hane
+        
+    print(f"\033[34mOperatör (API):\033[0m {veri.get('carrier', 'Bilgi yok')}")
+    print(f"\033[34mKayıtlı İsim:\033[0m \033[31mBu bilgi gizlilik politikası gereği gösterilemez\033[0m")
+
+else:
+    #... Hata mesajları
