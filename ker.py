@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -12,13 +13,11 @@ import json
 import time
 import random
 import logging
+import hashlib
+import base64
 import argparse
 from getpass import getpass
-from typing import Dict, List, Optional
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from base64 import urlsafe_b64encode
+from typing import Dict
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -36,32 +35,35 @@ DELAY_RANGE = (5, 15)  # Rastgele bekleme süresi (saniye)
 #region Security
 class SecureConfig:
     def __init__(self):
-        self.config_file = "config.enc"
-        self.salt = b'termux_secure_salt_'
-        self.master_key = None
+        self.config_file = "config.json"
+        self.salt = "termux_secure_salt_"
 
-    def derive_key(self, password: str) -> bytes:
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA512(),
-            length=32,
-            salt=self.salt,
-            iterations=600000,
-        )
-        return urlsafe_b64encode(kdf.derive(password.encode()))
+    def _simple_encrypt(self, data: str, password: str) -> str:
+        """Basit XOR şifreleme"""
+        key = hashlib.sha256(password.encode()).digest()
+        encrypted = bytearray()
+        for i, c in enumerate(data.encode()):
+            encrypted.append(c ^ key[i % len(key)])
+        return base64.urlsafe_b64encode(encrypted).decode()
 
-    def encrypt_config(self, data: Dict, password: str) -> None:
-        key = self.derive_key(password)
-        fernet = Fernet(key)
-        encrypted = fernet.encrypt(json.dumps(data).encode())
-        with open(self.config_file, 'wb') as f:
-            f.write(encrypted)
+    def _simple_decrypt(self, encrypted_data: str, password: str) -> str:
+        """Şifre çözme"""
+        key = hashlib.sha256(password.encode()).digest()
+        decoded = base64.urlsafe_b64decode(encrypted_data)
+        return bytes([c ^ key[i % len(key)] for i, c in enumerate(decoded)]).decode()
 
-    def decrypt_config(self, password: str) -> Dict:
-        with open(self.config_file, 'rb') as f:
-            encrypted = f.read()
-        key = self.derive_key(password)
-        fernet = Fernet(key)
-        return json.loads(fernet.decrypt(encrypted).decode())
+    def save_config(self, data: Dict, password: str) -> None:
+        """Config dosyasını kaydet"""
+        data["password"] = self._simple_encrypt(data["password"], password)
+        with open(self.config_file, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    def load_config(self, password: str) -> Dict:
+        """Config dosyasını yükle"""
+        with open(self.config_file) as f:
+            data = json.load(f)
+        data["password"] = self._simple_decrypt(data["password"], password)
+        return data
 
     def config_exists(self) -> bool:
         return os.path.exists(self.config_file)
@@ -79,11 +81,6 @@ class InstaReporterBot:
         options.headless = True
         options.set_preference("privacy.trackingprotection.enabled", True)
         
-        if self.config.get('proxy'):
-            options.set_preference('network.proxy.type', 1)
-            options.set_preference('network.proxy.socks', self.config['proxy']['host'])
-            options.set_preference('network.proxy.socks_port', self.config['proxy']['port'])
-
         return webdriver.Firefox(
             service=Service(
                 GeckoDriverManager().install(),
@@ -191,24 +188,20 @@ def main():
         print("İlk kurulum yapılıyor...")
         config_data = {
             "username": input("Instagram kullanıcı adı: "),
-            "password": getpass("Şifre: "),
-            "proxy": {
-                "host": input("Proxy adresi (boş bırakabilirsiniz): "),
-                "port": input("Proxy port (boş bırakabilirsiniz): ")
-            }
+            "password": getpass("Şifre: ")
         }
-        master_pwd = getpass("Master şifre belirleyin: ")
-        secure_config.encrypt_config(config_data, master_pwd)
+        master_pwd = getpass("Config şifresi belirleyin: ")
+        secure_config.save_config(config_data, master_pwd)
         print("Yapılandırma tamamlandı!")
         return
 
-    master_pwd = getpass("Master şifre: ")
+    master_pwd = getpass("Config şifresi: ")
     try:
-        config = secure_config.decrypt_config(master_pwd)
+        config = secure_config.load_config(master_pwd)
         bot = InstaReporterBot(config)
         bot.run(args.target.strip('@'))
     except Exception as e:
-        print(f"Kritik hata: {str(e)}")
+        print(f"Hata: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
