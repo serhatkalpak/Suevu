@@ -6,6 +6,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from webdriver_manager.firefox import GeckoDriverManager
 
 class Color:
     PURPLE = '\033[95m'
@@ -29,7 +31,7 @@ def print_banner():
 ███████╗██╔╝╚██╗███████╗██║░░░░░███████╗██║░░██║
 ╚══════╝╚═╝░░╚═╝╚══════╝╚═╝░░░░░╚══════╝╚═╝░░╚═╝
 {Color.END}
-{Color.YELLOW}➤ Termux Optimized Instagram Reporter v4.0{Color.END}
+{Color.YELLOW}➤ Termux Optimized Instagram Reporter v5.0{Color.END}
 {Color.DARKCYAN}➤ Created with ♥ by Python Experts{Color.END}
 """)
 
@@ -48,11 +50,9 @@ def setup_driver():
         options.set_preference("dom.webdriver.enabled", False)
         options.set_preference("useAutomationExtension", False)
         
-        print(f"{Color.BLUE}⚙️ Starting Firefox Driver...{Color.END}")
-        driver = webdriver.Firefox(
-            executable_path='geckodriver',
-            options=options
-        )
+        print(f"{Color.BLUE}⚙️ Initializing Firefox Driver...{Color.END}")
+        service = Service(GeckoDriverManager().install())
+        driver = webdriver.Firefox(service=service, options=options)
         print(f"{Color.GREEN}✓ Firefox Ready!{Color.END}")
         return driver
     except Exception as e:
@@ -64,15 +64,12 @@ def login(driver, config):
         print(f"\n{Color.YELLOW}🔑 Attempting Login...{Color.END}")
         driver.get("https://www.instagram.com/accounts/login/")
         
-        # Cookie Acceptance
         WebDriverWait(driver, 15).until(EC.element_to_be_clickable(
             (By.XPATH, "//button[contains(., 'Allow essential cookies')]")
         )).click()
         print(f"{Color.GREEN}✓ Cookies Accepted!{Color.END}")
         time.sleep(2)
 
-        # Credential Entry
-        print(f"{Color.BLUE}⌨️ Entering Credentials...{Color.END}")
         username_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.NAME, 'username'))
         )
@@ -81,14 +78,12 @@ def login(driver, config):
         password_field = driver.find_element(By.NAME, 'password')
         password_field.send_keys(config['password'])
 
-        # Login Button
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
             (By.XPATH, "//button[@type='submit']")
         )).click()
         print(f"{Color.GREEN}✓ Login Attempted!{Color.END}")
         time.sleep(5)
 
-        # Post-Login Checks
         try:
             WebDriverWait(driver, 5).until(EC.presence_of_element_located(
                 (By.XPATH, "//div[contains(text(), 'Not Now')]")
@@ -110,13 +105,11 @@ def execute_report(driver, username):
         driver.get(f"https://www.instagram.com/{username}/")
         time.sleep(3)
 
-        # Profile Menu
         print(f"{Color.BLUE}➤ Opening Profile Menu...{Color.END}")
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
             (By.XPATH, "//div[@aria-label='More options']")
         )).click()
 
-        # Report Flow
         steps = [
             ("📝 Initializing Report...", "//span[contains(., 'Report')]"),
             ("🔨 Selecting Report Type...", "//button[contains(., 'Report Account')]"),
