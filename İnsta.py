@@ -5,6 +5,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+import undetected_chromedriver as uc
 
 def load_config():
     if not os.path.exists('config.json'):
@@ -20,13 +23,21 @@ def load_config():
         return json.load(f)
 
 def setup_driver():
-    options = webdriver.ChromeOptions()
+    options = uc.ChromeOptions()
     options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.add_argument("--log-level=3")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     
-    driver = webdriver.Chrome(options=options)
-    driver.maximize_window()
+    # Termux için özel ayarlar
+    options.binary_location = '/data/data/com.termux/files/usr/bin/chromium'  # Termux'a chromium kurulu olmalı
+    
+    driver = uc.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options,
+        headless=False,
+        version_main=114  # Sisteminizdeki Chrome versiyonuna göre ayarlayın
+    )
     return driver
 
 def login(driver, config):
@@ -39,41 +50,37 @@ def login(driver, config):
     driver.find_element(By.NAME, 'password').send_keys(config['password'])
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
     
-    time.sleep(5)  # Login işleminin tamamlanmasını bekle
+    time.sleep(5)
 
 def report_user(driver, username):
-    driver.get(f'https://www.instagram.com/{username}/')
-    
     try:
-        # Profil sayfası elementlerini bul
-        menu_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Diğer')]"))
-        )
-        menu_button.click()
+        driver.get(f'https://www.instagram.com/{username}/')
+        time.sleep(3)
         
-        report_button = WebDriverWait(driver, 10).until(
+        # Diğer düğmesini bul
+        WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'glyphsSpriteMore_horizontal')]"))
+        ).click()
+        
+        # Şikayet et
+        WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Şikayet Et')]"))
-        )
-        report_button.click()
-        
-        # Raporlama adımları
-        WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Hesabı bildir')]"))
         ).click()
         
+        # Sebep seç
         WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[text()='Uygunsuz']"))
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Uygunsuz')]"))
         ).click()
         
+        # Onayla
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Gönder')]"))
         ).click()
         
-        print("Başarıyla raporlandı!")
         return True
         
     except Exception as e:
-        print(f"Hata oluştu: {str(e)}")
+        print(f"Hata: {str(e)}")
         return False
 
 def main():
