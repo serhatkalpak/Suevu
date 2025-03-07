@@ -7,11 +7,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 # Terminal Temizleme ve Başlık
-os.system('cls' if os.name == 'nt' else 'clear')
-print("\033[1;36mInstagram Reporter v2.0\033[0m")
+os.system('clear')
+print("\033[1;36mInstagram Reporter v3.0 (Termux Optimized)\033[0m")
 
 def load_config():
     try:
@@ -26,13 +25,13 @@ def setup_driver():
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
+    options.add_argument('--headless')  # Termux'ta GUI olmadığı için
+    options.binary_location = '/data/data/com.termux/files/usr/bin/chromium'  # Termux Chromium yolu
     
     try:
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
+        # Termux için özel ChromeDriver yolu
+        service = Service(executable_path='/data/data/com.termux/files/usr/bin/chromedriver')
+        driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
         print(f"\033[1;31m[!] Driver hatası: {str(e)}\033[0m")
@@ -42,9 +41,9 @@ def login(driver, config):
     try:
         driver.get('https://www.instagram.com/accounts/login/')
         
-        # Çerez Kabul
+        # Çerez Kabul (Güncellenmiş XPath)
         WebDriverWait(driver, 15).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Allow essential and optional cookies')]")
+            (By.XPATH, "//button[contains(., 'Allow all cookies')]")
         )).click()
         time.sleep(2)
 
@@ -63,14 +62,6 @@ def login(driver, config):
         )).click()
         time.sleep(5)
 
-        # Giriş Sonrası Pop-up'lar
-        try:
-            WebDriverWait(driver, 5).until(EC.element_to_be_clickable(
-                (By.XPATH, "//div[text()='Şimdi Değil']")
-            )).click()
-        except:
-            pass
-
         return True
 
     except Exception as e:
@@ -82,26 +73,26 @@ def report_user(driver, username):
         driver.get(f'https://www.instagram.com/{username}/')
         time.sleep(3)
 
-        # Profil Menüsü
+        # Profil Menüsü (Güncellenmiş XPath)
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//span[@aria-label='Daha fazla seçenek']")
+            (By.XPATH, "//div[contains(@class, 'x1i10hfl') and @role='button']")
         )).click()
 
         # Raporlama Akışı
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Hesabı Bildir')]")
+            (By.XPATH, "//div[text()='Hesabı Bildir']")
         )).click()
 
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Uygunsuz')]")
+            (By.XPATH, "//div[text()='Uygunsuz']")
         )).click()
 
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Taklit Hesap')]")
+            (By.XPATH, "//div[text()='Taklit Hesap']")
         )).click()
 
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Gönder')]")
+            (By.XPATH, "//div[text()='Gönder']")
         )).click()
 
         print(f"\033[1;32m[✓] @{username} başarıyla raporlandı!\033[0m")
@@ -123,7 +114,7 @@ def main():
             if report_user(driver, username):
                 report_count += 1
                 print(f"\033[1;34m[+] Toplam Rapor: {report_count}\033[0m")
-                time.sleep(120)  # Instagram rate limit için 2 dakika bekleme
+                time.sleep(300)  # 5 dakika bekleme süresi
             else:
                 break
                 
