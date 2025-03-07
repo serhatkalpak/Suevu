@@ -8,7 +8,6 @@ import logging
 import threading
 import sqlite3
 from datetime import datetime
-from cryptography.fernet import Fernet
 from typing import Optional, Dict, List, Tuple
 from selenium import webdriver
 from selenium.webdriver.common.by import By
