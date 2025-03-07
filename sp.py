@@ -1,15 +1,11 @@
 import os
 import time
 import json
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.options import Options
+import requests
 
 # Terminal Temizleme ve Başlık
 os.system('clear')
-print("\033[1;36mInstagram Reporter v4.0 (Termux Firefox)\033[0m")
+print("\033[1;36mInstagram Reporter v5.0 (API Tabanlı)\033[0m")
 
 def load_config():
     try:
@@ -19,80 +15,49 @@ def load_config():
         print("\033[1;31m[!] config.json bulunamadı veya okunamadı!\033[0m")
         exit()
 
-def setup_driver():
-    options = Options()
-    options.add_argument('--headless')  # GUI olmadığı için headless mod
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    
-    try:
-        # Firefox için GeckoDriver kullanıyoruz
-        driver = webdriver.Firefox(options=options)
-        return driver
-    except Exception as e:
-        print(f"\033[1;31m[!] Driver hatası: {str(e)}\033[0m")
+def login(config):
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; Termux) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+    })
+
+    # Giriş yap
+    login_url = "https://www.instagram.com/accounts/login/ajax/"
+    response = session.post(login_url, data={
+        "username": config["username"],
+        "password": config["password"],
+        "queryParams": "{}",
+        "optIntoOneTap": "false"
+    })
+
+    if response.status_code == 200 and "authenticated" in response.text:
+        print("\033[1;32m[✓] Giriş başarılı!\033[0m")
+        return session
+    else:
+        print("\033[1;31m[!] Giriş başarısız!\033[0m")
         exit()
 
-def login(driver, config):
+def report_user(session, username):
     try:
-        driver.get('https://www.instagram.com/accounts/login/')
-        
-        # Çerez Kabul (Güncellenmiş XPath)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Allow all cookies')]")
-        )).click()
-        time.sleep(2)
+        # Kullanıcı ID'sini al
+        user_info_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
+        response = session.get(user_info_url)
+        user_id = response.json()["graphql"]["user"]["id"]
 
-        # Giriş Bilgileri
-        username_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.NAME, 'username'))
-        )
-        username_field.send_keys(config['username'])
+        # Rapor gönder
+        report_url = "https://www.instagram.com/users/report/"
+        response = session.post(report_url, data={
+            "source_name": "",
+            "reason_id": "1",  # 1: Uygunsuz, 2: Taklit Hesap, vb.
+            "user_id": user_id
+        })
 
-        password_field = driver.find_element(By.NAME, 'password')
-        password_field.send_keys(config['password'])
-
-        # Giriş Butonu
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[@type='submit']")
-        )).click()
-        time.sleep(5)
-
-        return True
-
-    except Exception as e:
-        print(f"\033[1;31m[!] Giriş hatası: {str(e)}\033[0m")
-        return False
-
-def report_user(driver, username):
-    try:
-        driver.get(f'https://www.instagram.com/{username}/')
-        time.sleep(3)
-
-        # Profil Menüsü (Güncellenmiş XPath)
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[contains(@class, 'x1i10hfl') and @role='button']")
-        )).click()
-
-        # Raporlama Akışı
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[text()='Hesabı Bildir']")
-        )).click()
-
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[text()='Uygunsuz']")
-        )).click()
-
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[text()='Taklit Hesap']")
-        )).click()
-
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[text()='Gönder']")
-        )).click()
-
-        print(f"\033[1;32m[✓] @{username} başarıyla raporlandı!\033[0m")
-        return True
+        if response.status_code == 200:
+            print(f"\033[1;32m[✓] @{username} başarıyla raporlandı!\033[0m")
+            return True
+        else:
+            print(f"\033[1;31m[!] Raporlama başarısız: {response.status_code}\033[0m")
+            return False
 
     except Exception as e:
         print(f"\033[1;31m[!] Raporlama hatası: {str(e)}\033[0m")
@@ -102,19 +67,16 @@ def main():
     config = load_config()
     username = input("\033[1;33m[?] Raporlanacak kullanıcı adı: \033[0m").strip('@')
     
-    driver = setup_driver()
+    session = login(config)
     
-    if login(driver, config):
-        report_count = 0
-        while True:
-            if report_user(driver, username):
-                report_count += 1
-                print(f"\033[1;34m[+] Toplam Rapor: {report_count}\033[0m")
-                time.sleep(300)  # 5 dakika bekleme süresi
-            else:
-                break
-                
-    driver.quit()
+    report_count = 0
+    while True:
+        if report_user(session, username):
+            report_count += 1
+            print(f"\033[1;34m[+] Toplam Rapor: {report_count}\033[0m")
+            time.sleep(300)  # 5 dakika bekleme süresi
+        else:
+            break
 
 if __name__ == "__main__":
     main()
