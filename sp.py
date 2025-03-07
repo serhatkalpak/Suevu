@@ -5,12 +5,11 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.firefox.options import Options
 
 # Terminal Temizleme ve Başlık
 os.system('clear')
-print("\033[1;36mInstagram Reporter v3.0 (Termux Optimized)\033[0m")
+print("\033[1;36mInstagram Reporter v4.0 (Termux Firefox)\033[0m")
 
 def load_config():
     try:
@@ -22,16 +21,13 @@ def load_config():
 
 def setup_driver():
     options = Options()
+    options.add_argument('--headless')  # GUI olmadığı için headless mod
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--headless')  # Termux'ta GUI olmadığı için
-    options.binary_location = '/data/data/com.termux/files/usr/bin/chromium'  # Termux Chromium yolu
     
     try:
-        # Termux için özel ChromeDriver yolu
-        service = Service(executable_path='/data/data/com.termux/files/usr/bin/chromedriver')
-        driver = webdriver.Chrome(service=service, options=options)
+        # Firefox için GeckoDriver kullanıyoruz
+        driver = webdriver.Firefox(options=options)
         return driver
     except Exception as e:
         print(f"\033[1;31m[!] Driver hatası: {str(e)}\033[0m")
